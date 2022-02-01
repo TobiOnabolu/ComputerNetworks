@@ -1,13 +1,12 @@
 import struct
 
-data = 'Hello World!!!00'
-header = struct.pack('!IHH', 16, 0, 1)
-packet = header + data.encode('utf-8')
 
+bytes = b'\x00\x00\x00\r'
 
-#print(packet)
-print(len(packet))
-
+# python strucn unpack() method
+Numeric_values = struct.unpack('!I', bytes)
+# printing
+print(Numeric_values)
 
 
 

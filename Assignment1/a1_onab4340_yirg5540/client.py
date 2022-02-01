@@ -6,10 +6,18 @@
 from socket import * 
 import struct
 import sys
-
+import time
 
 CLIENT = 1
 SERVER = 2
+
+def check_server_response(response):
+    data_len, pcode, entity = struct.unpack_from('!IHH', response)
+    if pcode==555:
+        response = response[8:]
+        print(response.decode())
+        sys.exit()
+    return 
 
 def phaseA(clientSocket, server_name, server_port):
     #packet should contain pcode, entity, data length, data
@@ -101,17 +109,59 @@ def phaseB(clientSocket, server_name, server_port, repeat, length, pcode):
 
 
 
-def phaseC():
-    pass
 
-def phaseD():
-    pass
 
+def phaseD(clientSocket):
+    #receive packet from server
+    packet = clientSocket.recv(1024)
+ 
+    data_length, pcode, entity, repeat2, length2, codeC, char = struct.unpack('!IHHIIIB', packet)
+
+    #send repeat2 number of packets to server
+    #make lenght divisible by 4
+    while length2 % 4 != 0:
+        length2 += 1
+
+    pcode = codeC
+
+
+    #create our data for our packets
+    arr = length2 * [char]
+
+    
+    data = bytearray(arr)
+
+   
+
+
+    #send repeat2 number of packets
+    for packet_id in range(repeat2):
+        packet = struct.pack(f'!IHH{length2}s', length2, pcode, CLIENT, data)
+        print(f'Sending packet with packet ID: {packet_id}')
+        clientSocket.send(packet)
+    
+
+
+    try:
+        response = clientSocket.recv(2048)
+    except:
+        print("Did not receive final packet from server")
+        clientSocket.close()
+        sys.exit()
+
+    
+    check_server_response(response)
+    data_length, pcode, entity, codeD = struct.unpack('!IHHI', response)
+
+
+    print(f'Received CodeD: {codeD}')
+    
+    return
 
 
 #Create Socket
-#server_name = '34.69.60.253' #use ip address of computer u want to connect to
-server_name = 'localhost' #use ip address of computer u want to connect to
+server_name = '34.69.60.253' #use ip address of computer u want to connect to
+#server_name = 'localhost' #use ip address of computer u want to connect to
 
 server_port = 12000
 # Bind the socket to server address and server port
@@ -126,8 +176,21 @@ repeat, udp_port, length, codeA = phaseA(clientSocket, server_name, server_port)
 
 #Create new socket with new port 
 server_port = udp_port
-
 tcp_port, codeB = phaseB(clientSocket, server_name, server_port, repeat, length, codeA)
+
+#Connect to tcp port PhaseC
+clientSocket.close()
+server_port = tcp_port
+clientSocket = socket(AF_INET, SOCK_STREAM)
+time.sleep(3)
+clientSocket.settimeout(5)
+clientSocket.connect((server_name, server_port))
+
+phaseD(clientSocket)
+
+print("Done All phases Closing...")
+clientSocket.close()
+sys.exit()
 
 
 
