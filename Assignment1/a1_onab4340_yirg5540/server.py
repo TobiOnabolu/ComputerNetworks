@@ -1,5 +1,3 @@
-#print(packet[-data_length:])
-
 #Alvin Onabolu
 #Nahor Yirgaalem
 
@@ -59,6 +57,9 @@ def phaseA(serverSocket):
     #collect Hello World message
     word = word[:-2]
 
+    print(f'receiving from the client: data_length: {data_length} code: {pcode}  entity: {entity} data: {word}\n')
+
+    print('------------ Starting Stage A  ------------\n')
     #create new packet to send back to client
     repeat = 2#random.randint(5,20)
     udp_port = random.randint(20000, 30000)
@@ -66,10 +67,12 @@ def phaseA(serverSocket):
     codeA = random.randint(100, 400)
     entity = SERVER
 
-    #Pack message back to bytes to get number of bytes
-    data = struct.pack('IIHH', repeat, udp_port, length, codeA)
+
     #Repeat is 4 bytes, udp port is 4 byts, + length is 2, codeA is 2
     data_length = 12
+
+    print(f'sending to the client: data_length: {data_length}  code: {pcode} entity: {entity}  repeat: {repeat}  udp_port: {udp_port}  len: {length} codeA: {codeA}')
+
 
     #Put header details back to bytes ensure this has big endian
     packet = struct.pack('!IHHIIHH', data_length, pcode, entity, repeat, udp_port, length, codeA)
@@ -83,7 +86,7 @@ def phaseA(serverSocket):
 
 
 
-def verify_phaseC_packet(connectionSocket, serverSocket, length2, codeC):
+def verify_phaseD_packet(i, char, connectionSocket, serverSocket, length2, codeC):
     #Receiving packet from client
     try:
         packet = connectionSocket.recv(1024)
@@ -97,9 +100,10 @@ def verify_phaseC_packet(connectionSocket, serverSocket, length2, codeC):
     try:  
         #If we werent sent correct number of argument in packet, a struct error would be raised
         data_length, pcode, entity, data = struct.unpack(f'!IHH{length2}s', packet)
+ 
 
         #Check that all value are correct, and packet is divisble by 4
-        if (len(data) != length2 or data_length != (length2) or pcode != codeC or entity != CLIENT or data_length % 4 != 0):
+        if (data_length != (length2) or pcode != codeC or entity != CLIENT or data_length % 4 != 0):
             #close Conection 
             print("incorrect value")
             connectionSocket.close()
@@ -111,7 +115,8 @@ def verify_phaseC_packet(connectionSocket, serverSocket, length2, codeC):
         connectionSocket.close()
         closeConnection(serverSocket)
 
-    print(f'Received packet from client')
+
+    print(f' i =  {i} data_len:  {data_length} pcode:  {pcode} entity:  {entity} data:  {data[:8]}')
 
     
 
@@ -139,7 +144,7 @@ def verify_phaseB_packet(serverSocket, order, length, codeA):
         print("Incorrect number of arguments")
         closeConnection(serverSocket)
 
-    print(f'Received packet from client with packet id: {packet_id}')
+    print(f'SERVER: received_packet_id =  {packet_id} data_len =  {data_length}  pcode: {pcode}')
 
     return clientAddress
 
@@ -168,7 +173,7 @@ def phaseB(serverSocket, repeat, pcode, length):
         #choose whether to send back ack packet or not
         send = random.randint(0,1)
         if (send == 1):
-            print(f'Sending Ack packet to client for packet id: {order}')
+            print(f'SERVER: Sending Ack packet to client for packet id: {order}')
             send_ack(serverSocket, pcode, order, clientAddress)
             order +=1 
         #stop sending packets once we have received repeat number of packets
@@ -181,6 +186,9 @@ def phaseB(serverSocket, repeat, pcode, length):
     data_length = 8 #tcp port is 4 bytes and code b are both 4byte integer
     packet = struct.pack('!IHHII', data_length, pcode, SERVER, tcp_port, codeB)
     serverSocket.sendto(packet, clientAddress)
+
+    print(f' ------------- B2: sending tcp_port {tcp_port} codeB {codeB}')
+
     return tcp_port, codeB
 
 
@@ -195,24 +203,26 @@ def phaseC(connectionSocket, serverSocket, pcode):
     codeC = random.randint(100, 400)
     char = 'A'
     char = char.encode('utf-8')
-    data_length = 4 + 2 + 4 + 1
+    data_length = 4 + 4 + 4 + 1
     packet = struct.pack('!IHHIIIc', data_length, pcode, SERVER, repeat2, length2, codeC, char)
+    print(f'Server Sending to the client:  data_length: {data_length} code: {pcode}  entity: 2  repeat2: {repeat2}  len2: {length2} codeC:  {codeC}')
     connectionSocket.send(packet)
     return repeat2, length2, codeC, char
 
 
 def phaseD(connectionSocket, serverSocket, repeat2, length2, codeC, char):
 
-
+    
     #get the correct length of what the len variable should be with padding
     while length2 % 4 != 0:
         length2 += 1
 
 
+    print('Starting to Receive packets from client')
     #Continously receive client packets to client
     for i in range(repeat2):
         #receive packet from client, might have to change time out so that it is higher than clients timeout
-        verify_phaseC_packet(connectionSocket, serverSocket, length2, codeC)
+        verify_phaseD_packet(i, char, connectionSocket, serverSocket, length2, codeC)
 
     codeD = random.randint(100, 400)
     data_length = 4 #code d is 4 bytes
@@ -223,8 +233,6 @@ def phaseD(connectionSocket, serverSocket, repeat2, length2, codeC, char):
  
     
 
-def checkConditions():
-    pass
 
 
 # Assign a port number
@@ -240,34 +248,39 @@ serverSocket.settimeout(3.0)
 
 #Executing phases one at a time while keeping connection open
 while True:
-    print('Starting Phase A...')
     serverPort, repeat, length, codeA = phaseA(serverSocket)
     #Create new socket with new udp port
     serverSocket.close()
     serverSocket = socket(AF_INET, SOCK_DGRAM)
     serverSocket.bind(("", serverPort))
     serverSocket.settimeout(7.0)
-    print('Finished Phase A.')
 
-    print('Starting Phase B...')
+    print(f'SERVER: Server ready on the new UDP port: {serverPort}')
+    print('SERVER:------------ End of Stage A  ------------\n\n')
+
+
+    print('SERVER:------------ Starting Stage B  ------------')
     tcp_port, codeB = phaseB(serverSocket, repeat, codeA, length)
-    print('Finished Phase B.')
+    print(' ------------ End of Stage B  ------------\n')
 
-    #TODO phase C and D
-    print('Starting Phase C...')
+
+    print(' ------------ Stating Stage C ------------')
     # Creat tcp connection
     serverSocket.close()
     serverSocket = socket(AF_INET, SOCK_STREAM)
     serverPort = tcp_port
     serverSocket.bind(("", serverPort))
+    serverSocket.settimeout(7.0)
+    print(f'The server is ready to receive on tcp port: {serverPort}')
     # Listen for connection
     serverSocket.listen(5)
     connectionSocket, addr = serverSocket.accept()
-    serverSocket.settimeout(7.0)
+    
     
     repeat2, length2, codeC, char = phaseC(connectionSocket, serverSocket, codeB)
-    print('Finished Phase C.')
-    print('Starting Phase D...')
+    print(' ------------ End of Stage C    ------------\n')
+
+    print(' ------------ Starting Stage D  ------------')
     phaseD(connectionSocket, serverSocket, repeat2, length2, codeC, char)
     print('Finished Phase D.')
     print('Closing Program')

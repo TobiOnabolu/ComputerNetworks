@@ -45,6 +45,8 @@ def phaseA(clientSocket, server_name, server_port):
         clientSocket.close()
         sys.exit()
     data_length, pcode, entity, repeat, udp_port, length, codeA = struct.unpack('!IHHIIHH', response)
+
+    print(f'Received packet from server: data_len: {data_length}  pcode: {pcode}  entity: {entity}  repeat: {repeat}  len: {length}  udp_port: {udp_port}  codeA: {codeA}')
   
     return repeat, udp_port, length, codeA
 
@@ -86,9 +88,8 @@ def phaseB(clientSocket, server_name, server_port, repeat, length, pcode):
                 failed = False
 
 
-        #SOMETIME THIS GIVES INCORRECT BUFFER ERROR, PLEASE HELP
         s_data_length, pcode, s_entity, s_packet_id = struct.unpack('!IHHI', response)
-        print(f'Recieved ack packet for packet ID: {s_packet_id}!')
+        print(f'Received acknowledgement packet from server: data_len:  {s_data_length} pcode:  {pcode} entity:  {s_entity} acknumber:  {s_packet_id}')
 
     #Once received all ack packets from server wait to receive final packet
     try:
@@ -101,6 +102,7 @@ def phaseB(clientSocket, server_name, server_port, repeat, length, pcode):
 
 
     data_length, pcode, entity, tcp_port, codeB = struct.unpack('!IHHII', response)
+    print(f'Received final packet: data_len:  {data_length} pcode:  {pcode} entity: {entity} tcp_port: {tcp_port}  codeB: {codeB}')
 
     return tcp_port, codeB
         
@@ -117,6 +119,10 @@ def phaseD(clientSocket):
  
     data_length, pcode, entity, repeat2, length2, codeC, char = struct.unpack('!IHHIIIB', packet)
 
+    print(f'Received packet from server: data_len: {data_length}  pcode: {pcode}   entity: {entity}   repeat2: {repeat2}   len2: {length2}   codeC: {codeC}   char:  {char}')
+    print('------------ End of Stage C  ------------\n')
+    
+    
     #send repeat2 number of packets to server
     #make lenght divisible by 4
     while length2 % 4 != 0:
@@ -131,8 +137,8 @@ def phaseD(clientSocket):
     
     data = bytearray(arr)
 
-   
-
+    print(f'sending  {data[:8]} to server for {repeat2} times')
+  
 
     #send repeat2 number of packets
     for packet_id in range(repeat2):
@@ -150,11 +156,12 @@ def phaseD(clientSocket):
         sys.exit()
 
     
-    check_server_response(response)
+    #check_server_response(response)
     data_length, pcode, entity, codeD = struct.unpack('!IHHI', response)
 
 
-    print(f'Received CodeD: {codeD}')
+    print(f'Received from server: data_len: {data_length}  pcode: {pcode}  entity: {entity}  codeD: {codeD}')
+    
     
     return
 
@@ -169,16 +176,22 @@ clientSocket = socket(AF_INET, SOCK_DGRAM)
 #incase server runs into error and doesnt send nothing 
 clientSocket.settimeout(5)
 
-
+print('------------ Starting Stage A  ------------')
 repeat, udp_port, length, codeA = phaseA(clientSocket, server_name, server_port)
+print('------------ End of Stage A  ------------\n')
 
 
+print('------------ Starting Stage B  ------------')
 
-#Create new socket with new port 
 server_port = udp_port
 tcp_port, codeB = phaseB(clientSocket, server_name, server_port, repeat, length, codeA)
+print('------------ End of Stage B  ------------\n')
 
+
+
+print('------------ Starting Stage C  ------------')
 #Connect to tcp port PhaseC
+print(f'connecting to server at tcp port {tcp_port}')
 clientSocket.close()
 server_port = tcp_port
 clientSocket = socket(AF_INET, SOCK_STREAM)
@@ -186,7 +199,11 @@ time.sleep(3)
 clientSocket.settimeout(5)
 clientSocket.connect((server_name, server_port))
 
+
+
 phaseD(clientSocket)
+print('------------ End of Stage D  ------------\n')
+
 
 print("Done All phases Closing...")
 clientSocket.close()
