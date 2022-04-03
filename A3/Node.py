@@ -1,3 +1,6 @@
+#Alvin Onabolu
+#Nahor Yirgaalem
+
 from common import *
 
 class Node:
@@ -10,6 +13,7 @@ class Node:
         self.distanceTable = [[0 for i in range(num)] for j in range(num)]
         self.routes = [0 for i in range(num)]
         self.neighbors = [] #list of this nodes neigbors
+        self.neighbors_costs = []
     
 
         # you implement the rest of constructor
@@ -27,8 +31,9 @@ class Node:
         #Send the intial cost array to it neigboring nodes
         for i in range(num):
             if costs[i] != 999 and i != self.myID:
-                self.neighbors.append(i)
+                self.neighbors.append([i, costs[i]])
             self.routes[i] = i
+
 
         self.sendUpdate(costs)
     
@@ -36,7 +41,7 @@ class Node:
     def recvUpdate(self, pkt):
         
         prev = deepcopy(self.distanceTable[self.myID]) #save a copy to see if there was a change
-
+     
         #implement the change that you got from neigboring router 
         #we apply the other routers changes without checking
         #computing Ddestid to source id shortest path
@@ -57,18 +62,19 @@ class Node:
     
 
         #getting shortest distance from this router each other router
+        
         for router in range(self.ns.NUM_NODES): #for each router computer Dx to Drouter
             if router != self.myID:
                 min_cost = self.distanceTable[self.myID][router] #get the current shortest path from this node to this router
                 for neighbor in self.neighbors:
                     #getting each neihbor of this router summing it cost + shortest path from that neighbor to router
-                    cost = self.distanceTable[self.myID][neighbor] + self.distanceTable[neighbor][router]
-                    if cost <= min_cost:
+                    cost = neighbor[1] + self.distanceTable[neighbor[0]][router]
+                    if cost < min_cost:
                         min_cost = cost
                         #can add next hop for this node to router
-                        self.routes[router] = neighbor
+                        self.routes[router] = neighbor[0]
+         
                         #update the router
-                        
                         self.distanceTable[self.myID][router] = min_cost
 
 
@@ -77,12 +83,13 @@ class Node:
         if (prev != self.distanceTable[self.myID]): #contents have been updated with new min costs
             self.sendUpdate(self.distanceTable[self.myID])
 
+
         return 
 
     
     def sendUpdate(self, changed_costs):
         for i in range(len(self.neighbors)):
-            pkt = RTPacket(self.myID, self.neighbors[i], changed_costs)
+            pkt = RTPacket(self.myID, self.neighbors[i][0], changed_costs)
             #send tolayer to self.neigbors[i]
             self.ns.tolayer2(pkt)
         return

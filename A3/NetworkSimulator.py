@@ -10,10 +10,10 @@ class NetworkSimulator:
         print("Initializing Network Simulator")
 
         seed = 10 #int(input("Enter random seed: "))
-        trace = 2 #int(input("Enter TRACE: "))        
+        trace = int(input("Enter TRACE: "))        
         self.TRACE = trace
         
-        num_nodes = 3 #int(input("Enter number of nodes:"))
+        num_nodes = int(input("Enter number of nodes:"))
         
         self.rand = random.seed(seed);        # instantiate Random number generator with provided seed
 
